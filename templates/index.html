@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>EduBot - Your Study Assistant</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>EduBot</h1>
+            <button class="theme-toggle" id="theme-toggle" title="Toggle theme"></button>
+        </div>
+        
+        <div class="chat-area" id="chat-area">
+            <div class="message message-bot">
+                <div class="message-avatar">AI</div>
+                <div class="message-content">Hi there! How can I help you today?</div>
+            </div>
+        </div>
+        
+        <div class="input-container">
+            <div id="upload-status"></div>
+            <div id="file-preview"></div>
+            
+            <div class="input-area">
+                <input type="file" class="file-input" id="file-input" accept=".pdf,.txt,.json,.doc,.docx">
+                <button id="upload-trigger" title="Attach file">+</button>
+                <input type="text" id="message-input" placeholder="Type your message..." autocomplete="off">
+                <button id="send-btn" title="Send message">→</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        const messageInput = document.getElementById("message-input");
+        const sendBtn = document.getElementById("send-btn");
+        const chatArea = document.getElementById("chat-area");
+        const fileInput = document.getElementById("file-input");
+        const uploadTrigger = document.getElementById("upload-trigger");
+        const uploadStatus = document.getElementById("upload-status");
+        const filePreview = document.getElementById("file-preview");
+        const themeToggle = document.getElementById("theme-toggle");
+
+        let selectedFile = null;
+
+        // Theme toggle
+        themeToggle.addEventListener("click", () => {
+            document.body.classList.toggle("light");
+        });
+
+        // Chat functionality
+        sendBtn.addEventListener("click", sendMessage);
+        messageInput.addEventListener("keypress", (e) => {
+            if (e.key === "Enter") sendMessage();
+        });
+
+        // Upload functionality
+        uploadTrigger.addEventListener("click", () => fileInput.click());
+        fileInput.addEventListener("change", handleFileSelect);
+
+        async function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message) return;
+
+            addMessage(message, "user");
+            messageInput.value = "";
+
+            try {
+                const res = await fetch("/chat", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ message }),
+                });
+
+                const data = await res.json();
+                addMessage(data.response, "bot");
+            } catch (err) {
+                addMessage("Oops! Couldn't connect to EduBot.", "bot");
+                console.error(err);
+            }
+        }
+
+        function handleFileSelect() {
+            const file = fileInput.files[0];
+            if (file) {
+                selectedFile = file;
+                showFilePreview(file);
+            }
+        }
+
+        function showFilePreview(file) {
+            filePreview.innerHTML = `
+                <div class="file-preview">
+                    <div class="file-info">
+                        <span>📎</span>
+                        <span>${file.name}</span>
+                    </div>
+                    <div class="file-actions">
+                        <button onclick="uploadFile()">Upload</button>
+                        <button class="close-btn" onclick="clearFile()">×</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function uploadFile() {
+            if (!selectedFile) return;
+
+            filePreview.innerHTML = `
+                <div class="file-preview">
+                    <div class="file-info">
+                        <span>📎</span>
+                        <span>${selectedFile.name}</span>
+                    </div>
+                    <div class="file-actions">
+                        <span>Uploading...</span>
+                    </div>
+                </div>
+            `;
+
+            const formData = new FormData();
+            formData.append("file", selectedFile);
+
+            try {
+                const res = await fetch("/upload", {
+                    method: "POST",
+                    body: formData,
+                });
+
+                const data = await res.json();
+
+                if (data.structured_notes) {
+                    showStatus("File uploaded successfully!", "success");
+                    addMessage(`Great! I've processed "${selectedFile.name}". What would you like to know about it?`, "bot");
+                } else {
+                    showStatus(data.error || "Upload failed", "error");
+                }
+
+            } catch (err) {
+                console.error(err);
+                showStatus("Upload error", "error");
+            } finally {
+                clearFile();
+            }
+        }
+
+        function clearFile() {
+            selectedFile = null;
+            fileInput.value = "";
+            filePreview.innerHTML = "";
+        }
+
+        function addMessage(text, type) {
+            const messageDiv = document.createElement("div");
+            messageDiv.className = `message message-${type}`;
+
+            const avatar = document.createElement("div");
+            avatar.className = "message-avatar";
+            avatar.textContent = type === "user" ? "U" : "AI";
+
+            const messageContent = document.createElement("div");
+            messageContent.className = "message-content";
+            messageContent.innerHTML = text;  // <-- Updated line for rendering HTML!
+
+            if (type === "user") {
+                messageDiv.appendChild(messageContent);
+                messageDiv.appendChild(avatar);
+            } else {
+                messageDiv.appendChild(avatar);
+                messageDiv.appendChild(messageContent);
+            }
+
+            chatArea.appendChild(messageDiv);
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+
+        function showStatus(message, type) {
+            uploadStatus.innerHTML = `<div class="status ${type}">${message}</div>`;
+            setTimeout(() => {
+                uploadStatus.innerHTML = "";
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
