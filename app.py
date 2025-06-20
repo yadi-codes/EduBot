@@ -6,6 +6,7 @@ from werkzeug.utils import secure_filename
 import PyPDF2
 import re
 from dotenv import load_dotenv
+import parse
 
 load_dotenv()
 
