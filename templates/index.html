@@ -127,21 +127,7 @@
     </div>
 
     <script>
-        // Theme toggle functionality
-        const themeToggle = document.getElementById('theme-toggle');
-        const body = document.body;
         
-        const savedTheme = localStorage.getItem('theme') || 'dark';
-        if (savedTheme === 'light') {
-            body.classList.add('light-theme');
-        }
-        
-        themeToggle.addEventListener('click', () => {
-            body.classList.toggle('light-theme');
-            const theme = body.classList.contains('light-theme') ? 'light' : 'dark';
-            localStorage.setItem('theme', theme);
-        });
-
         // Auto-resize textarea
         const messageInput = document.getElementById('message-input');
         const characterCount = document.querySelector('.character-count');

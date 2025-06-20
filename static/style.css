@@ -45,9 +45,9 @@
   --tertiary-bg: rgba(168, 85, 247, 0.08);
   --quaternary-bg: rgba(168, 85, 247, 0.12);
   
-  /* --surface-primary: rgba(255, 255, 255, 0.8);
+  --surface-primary: rgba(255, 255, 255, 0.8);
   --surface-secondary: rgba(255, 255, 255, 0.9);
-  --surface-tertiary: rgba(255, 255, 255, 0.95); */
+  --surface-tertiary: rgba(255, 255, 255, 0.95);
   
   --text-primary: rgba(17, 24, 39, 0.95);
   --text-secondary: rgba(55, 65, 81, 0.8);
@@ -399,7 +399,7 @@ body {
 
 /* Input Section */
 .input-section {
-  padding: 24px;
+  /* padding: 24px; */
   border-top: 1px solid var(--border-tertiary);
   background: var(--surface-primary);
   backdrop-filter: var(--blur-md);
