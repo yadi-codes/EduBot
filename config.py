@@ -8,4 +8,4 @@ class Config:
     UPLOAD_FOLDER = 'uploads'
     ALLOWED_EXTENSIONS = {'pdf', 'txt', 'json', 'docx', 'pptx'}
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB
-    RATE_LIMIT = "200 per day, 50 per hour"
+    RATE_LIMIT = "200 per day, 500 per hour"

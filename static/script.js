@@ -121,7 +121,7 @@ class EduBotApp {
         // Add user message to UI
         this.addMessage(message, 'user');
         this.messageInput.value = '';
-        this.handleInputChange();
+        // this.handleInputChange();
 
         // Show typing indicator
         this.isTyping = true;
@@ -198,6 +198,50 @@ class EduBotApp {
     //     // Store in history
     //     this.messageHistory.push({ role, content, timestamp: new Date().toISOString() });
     // }
+    
+// Also update the addMessage function to ensure proper scrolling
+    addMessage(content, role, followUps = []) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message message-${role}`;
+        messageDiv.setAttribute('data-message-id', Date.now());
+
+        if (role === 'user') {
+            messageDiv.innerHTML = `
+                <div class="message-content">${this.escapeHtml(content)}</div>
+                <div class="message-avatar">
+                    <div class="avatar-gradient"></div>
+                    <span>You</span>
+                </div>
+            `;
+        } else {
+            messageDiv.innerHTML = `
+                <div class="message-avatar">
+                    <div class="avatar-gradient"></div>
+                    <span>✨</span>
+                </div>
+                <div class="message-content">
+                    ${content}
+                    ${followUps.length > 0 ? this.createFollowUps(followUps) : ''}
+                </div>
+            `;
+        }
+
+        // Remove welcome message if it exists
+        const welcomeMessage = this.chatMessages.querySelector('.welcome-message');
+        if (welcomeMessage && this.messageHistory.length === 0) {
+            welcomeMessage.remove();
+        }
+
+        this.chatMessages.appendChild(messageDiv);
+        
+        // Force scroll after DOM update
+        setTimeout(() => {
+            this.scrollToBottom();
+        }, 100);
+        
+        // Store in history
+        this.messageHistory.push({ role, content, timestamp: new Date().toISOString() });
+    }
 
     createFollowUps(followUps) {
         return `
@@ -248,58 +292,15 @@ class EduBotApp {
 
     // Add this to your script.js file - replace the existing scrollToBottom function
 
-scrollToBottom() {
-    requestAnimationFrame(() => {
+    scrollToBottom() {
         requestAnimationFrame(() => {
-            this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+            requestAnimationFrame(() => {
+                this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+            });
         });
-    });
-}
-
-
-// Also update the addMessage function to ensure proper scrolling
-addMessage(content, role, followUps = []) {
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `message message-${role}`;
-    messageDiv.setAttribute('data-message-id', Date.now());
-
-    if (role === 'user') {
-        messageDiv.innerHTML = `
-            <div class="message-content">${this.escapeHtml(content)}</div>
-            <div class="message-avatar">
-                <div class="avatar-gradient"></div>
-                <span>You</span>
-            </div>
-        `;
-    } else {
-        messageDiv.innerHTML = `
-            <div class="message-avatar">
-                <div class="avatar-gradient"></div>
-                <span>✨</span>
-            </div>
-            <div class="message-content">
-                ${content}
-                ${followUps.length > 0 ? this.createFollowUps(followUps) : ''}
-            </div>
-        `;
     }
 
-    // Remove welcome message if it exists
-    const welcomeMessage = this.chatMessages.querySelector('.welcome-message');
-    if (welcomeMessage && this.messageHistory.length === 0) {
-        welcomeMessage.remove();
-    }
 
-    this.chatMessages.appendChild(messageDiv);
-    
-    // Force scroll after DOM update
-    setTimeout(() => {
-        this.scrollToBottom();
-    }, 100);
-    
-    // Store in history
-    this.messageHistory.push({ role, content, timestamp: new Date().toISOString() });
-}
 
 // Also add this CSS to ensure proper scrolling behavior
     handleFileSelect(event) {

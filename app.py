@@ -618,7 +618,7 @@ def list_sessions():
         files = session.get("files", [])
         
         # Get last activity
-        last_activity = session.get("created_at")
+        last_activity = session.get("created_at")                                                   
         if messages:
             last_activity = messages[-1].get("timestamp", last_activity)
         

@@ -65,14 +65,19 @@
   box-sizing: border-box;
 }
 
+/* html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+} */
+
+
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background: var(--primary-bg);
   color: var(--text-primary);
   font-size: 14px;
   line-height: 1.6;
-  min-height: 100vh;
-  overflow: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -197,33 +202,42 @@ body {
 
 /* Add this CSS to your style.css file */
 
-.chat-container {
+/* .chat-container {
     flex: 1;
-    overflow-y: auto;
+    overflow: auto;
     padding: 24px;
-    scroll-behavior: smooth; /* Add smooth scrolling */
-    height: 0; /* Important: forces flex child to respect overflow */
-}
+    scroll-behavior: smooth; 
+    height: auto; 
+} */
 
-.chat-messages {
-    max-width: 800px;
-    margin: 0 auto;
-    min-height: 100%; /* Ensure messages fill container */
-    display: flex;
-    flex-direction: column;
-}
+/* .chat-messages { */
+    /* max-width: 800px; */
+    /* margin: 0 auto; */
+    /* min-height: 100%; */
+    /* display: flex; */
+    /* flex-direction: column; */
+    /* max-height: calc(100vh - 150px);  */
+    /* overflow: auto; */
+    /* height: auto; */
+/* } */
 
 /* Ensure the main content area has proper flex behavior */
 .main-content {
-    flex: 1;
+    /* flex: 1;
     display: flex;
     flex-direction: column;
-    overflow: hidden; /* Prevent overflow on parent */
-    height: 100vh; /* Full viewport height */
+    overflow: auto; 
+    height: 100vh;  */
+
+     flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100vh; /* This is important to keep the full viewport height */
+    overflow: hidden; 
 }
 
 .chat-header {
-  padding: 20px 24px;
+  padding: 7px 24px;
   border-bottom: 1px solid var(--border-tertiary);
   background: var(--surface-primary);
   backdrop-filter: var(--blur-md);
@@ -279,14 +293,36 @@ body {
 
 /* Chat Container */
 .chat-container {
-  flex: 1;
+  /* flex: 1;
   overflow-y: auto;
   padding: 24px;
+  scroll-behavior: smooth;
+  max-width: 800px;
+  margin: 0 auto; */
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; 
+   /* /* Prevents double scrollbars */
+
 }
 
-.chat-messages {
+/* .chat-messages {
   max-width: 800px;
   margin: 0 auto;
+} */
+
+.chat-messages {
+    /* max-width: 800px;
+    margin: 0 auto; */
+    /* display: flex; */
+    /* flex-direction: column; */
+    /* gap: 16px; */
+    flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  scroll-behavior: smooth;
+
 }
 
 .welcome-message {
@@ -309,7 +345,7 @@ body {
 }
 
 .avatar-gradient {
-  position: absolute;
+  /* position: absolute; */
   inset: 0;
   background: linear-gradient(135deg, transparent, rgba(255, 255, 255, 0.1));
 }
@@ -388,6 +424,7 @@ body {
   padding: 16px 20px;
   color: var(--text-primary);
   line-height: 1.6;
+  height: auto;
 }
 
 .message-user .message-content {
@@ -403,6 +440,8 @@ body {
   border-top: 1px solid var(--border-tertiary);
   background: var(--surface-primary);
   backdrop-filter: var(--blur-md);
+
+  padding: 16px 24px;
 }
 
 .file-upload-area {
@@ -648,7 +687,7 @@ body {
 button:focus-visible,
 input:focus-visible,
 textarea:focus-visible {
-  outline: 2px solid var(--accent-primary);
+  /* outline: 2px solid var(--accent-primary); */
   outline-offset: 2px;
 }
 
@@ -658,7 +697,7 @@ textarea:focus-visible {
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
+    animation-iteration-count: 1 !important;  
     transition-duration: 0.01ms !important;
   }
 }
