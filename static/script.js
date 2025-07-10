@@ -37,22 +37,39 @@ class EduBotApp {
 
     setupEventListeners() {
         // Message input
-        this.messageInput.addEventListener('input', () => this.handleInputChange());
-        this.messageInput.addEventListener('keydown', (e) => this.handleKeyDown(e));
-        this.sendBtn.addEventListener('click', () => this.sendMessage());
+        if (this.messageInput) {
+            this.messageInput.addEventListener('input', () => this.handleInputChange());
+            this.messageInput.addEventListener('keydown', (e) => this.handleKeyDown(e));
+        }
+        
+        if (this.sendBtn) {
+            this.sendBtn.addEventListener('click', () => this.sendMessage());
+        }
         
         // File upload
-        this.attachBtn.addEventListener('click', () => this.fileInput.click());
-        this.fileInput.addEventListener('change', (e) => this.handleFileSelect(e));
+        if (this.attachBtn && this.fileInput) {
+            this.attachBtn.addEventListener('click', () => this.fileInput.click());
+            this.fileInput.addEventListener('change', (e) => this.handleFileSelect(e));
+        }
         
         // Theme toggle
-        this.themeToggle.addEventListener('click', () => this.toggleTheme());
+        if (this.themeToggle) {
+            this.themeToggle.addEventListener('click', () => this.toggleTheme());
+        }
         
         // Study tools
-        this.quizBtn.addEventListener('click', () => this.generateQuiz());
-        this.flashcardsBtn.addEventListener('click', () => this.generateFlashcards());
-        this.sessionBtn.addEventListener('click', () => this.toggleSessionPanel());
-        this.newChatBtn.addEventListener('click', () => this.createNewSession());
+        if (this.quizBtn) {
+            this.quizBtn.addEventListener('click', () => this.generateQuiz());
+        }
+        if (this.flashcardsBtn) {
+            this.flashcardsBtn.addEventListener('click', () => this.generateFlashcards());
+        }
+        if (this.sessionBtn) {
+            this.sessionBtn.addEventListener('click', () => this.toggleSessionPanel());
+        }
+        if (this.newChatBtn) {
+            this.newChatBtn.addEventListener('click', () => this.createNewSession());
+        }
         
         // Suggestion chips
         document.addEventListener('click', (e) => {
@@ -87,15 +104,15 @@ class EduBotApp {
     }
 
     showWelcomeMessage() {
-        // Remove default welcome message and show dynamic one
         const welcomeMsg = document.querySelector('.welcome-message');
         if (welcomeMsg && this.messageHistory.length === 0) {
-            // Keep welcome message for new sessions
             return;
         }
     }
 
     handleInputChange() {
+        if (!this.messageInput || !this.characterCount) return;
+        
         const length = this.messageInput.value.length;
         this.characterCount.textContent = `${length} / 4000`;
         
@@ -104,7 +121,9 @@ class EduBotApp {
         this.messageInput.style.height = Math.min(this.messageInput.scrollHeight, 120) + 'px';
         
         // Enable/disable send button
-        this.sendBtn.disabled = length === 0 || this.isTyping;
+        if (this.sendBtn) {
+            this.sendBtn.disabled = length === 0 || this.isTyping;
+        }
     }
 
     handleKeyDown(e) {
@@ -115,13 +134,15 @@ class EduBotApp {
     }
 
     async sendMessage() {
+        if (!this.messageInput) return;
+        
         const message = this.messageInput.value.trim();
         if (!message || this.isTyping) return;
 
         // Add user message to UI
         this.addMessage(message, 'user');
         this.messageInput.value = '';
-        // this.handleInputChange();
+        this.handleInputChange();
 
         // Show typing indicator
         this.isTyping = true;
@@ -140,6 +161,10 @@ class EduBotApp {
                 })
             });
 
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
             const data = await response.json();
 
             // Remove typing indicator
@@ -149,6 +174,11 @@ class EduBotApp {
             if (data.error) {
                 this.addMessage('Sorry, I encountered an error. Please try again! 🤖', 'assistant');
             } else {
+                // Update session ID if provided
+                if (data.session_id) {
+                    this.currentSessionId = data.session_id;
+                    localStorage.setItem('sessionId', data.session_id);
+                }
                 this.addMessage(data.response, 'assistant', data.follow_ups);
             }
 
@@ -160,47 +190,9 @@ class EduBotApp {
         }
     }
 
-    // addMessage(content, role, followUps = []) {
-    //     const messageDiv = document.createElement('div');
-    //     messageDiv.className = `message message-${role}`;
-    //     messageDiv.setAttribute('data-message-id', Date.now());
-
-    //     if (role === 'user') {
-    //         messageDiv.innerHTML = `
-    //             <div class="message-content">${this.escapeHtml(content)}</div>
-    //             <div class="message-avatar">
-    //                 <div class="avatar-gradient"></div>
-    //                 <span>You</span>
-    //             </div>
-    //         `;
-    //     } else {
-    //         messageDiv.innerHTML = `
-    //             <div class="message-avatar">
-    //                 <div class="avatar-gradient"></div>
-    //                 <span>✨</span>
-    //             </div>
-    //             <div class="message-content">
-    //                 ${content}
-    //                 ${followUps.length > 0 ? this.createFollowUps(followUps) : ''}
-    //             </div>
-    //         `;
-    //     }
-
-    //     // Remove welcome message if it exists
-    //     const welcomeMessage = this.chatMessages.querySelector('.welcome-message');
-    //     if (welcomeMessage && this.messageHistory.length === 0) {
-    //         welcomeMessage.remove();
-    //     }
-
-    //     this.chatMessages.appendChild(messageDiv);
-    //     this.scrollToBottom();
-        
-    //     // Store in history
-    //     this.messageHistory.push({ role, content, timestamp: new Date().toISOString() });
-    // }
-    
-// Also update the addMessage function to ensure proper scrolling
     addMessage(content, role, followUps = []) {
+        if (!this.chatMessages) return;
+        
         const messageDiv = document.createElement('div');
         messageDiv.className = `message message-${role}`;
         messageDiv.setAttribute('data-message-id', Date.now());
@@ -257,12 +249,16 @@ class EduBotApp {
     }
 
     handleFollowUp(question) {
-        this.messageInput.value = question;
-        this.messageInput.focus();
-        this.handleInputChange();
+        if (this.messageInput) {
+            this.messageInput.value = question;
+            this.messageInput.focus();
+            this.handleInputChange();
+        }
     }
 
     showTypingIndicator() {
+        if (!this.chatMessages) return null;
+        
         const typingDiv = document.createElement('div');
         typingDiv.className = 'message message-assistant typing-indicator';
         typingDiv.innerHTML = `
@@ -290,9 +286,9 @@ class EduBotApp {
         }
     }
 
-    // Add this to your script.js file - replace the existing scrollToBottom function
-
     scrollToBottom() {
+        if (!this.chatMessages) return;
+        
         requestAnimationFrame(() => {
             requestAnimationFrame(() => {
                 this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
@@ -300,9 +296,6 @@ class EduBotApp {
         });
     }
 
-
-
-// Also add this CSS to ensure proper scrolling behavior
     handleFileSelect(event) {
         const files = Array.from(event.target.files);
         if (files.length === 0) return;
@@ -312,6 +305,8 @@ class EduBotApp {
     }
 
     showFilePreview(files) {
+        if (!this.filePreview) return;
+        
         this.filePreview.innerHTML = files.map(file => `
             <div class="file-preview-item" data-filename="${this.escapeHtml(file.name)}">
                 <div class="file-info">
@@ -347,7 +342,17 @@ class EduBotApp {
                 body: formData
             });
 
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
             const data = await response.json();
+
+            // Update session ID if provided
+            if (data.session_id) {
+                this.currentSessionId = data.session_id;
+                localStorage.setItem('sessionId', data.session_id);
+            }
 
             if (data.status === 'success') {
                 this.showUploadSuccess(data);
@@ -365,13 +370,15 @@ class EduBotApp {
         } finally {
             // Clear file input and preview after a delay
             setTimeout(() => {
-                this.fileInput.value = '';
-                this.filePreview.innerHTML = '';
+                if (this.fileInput) this.fileInput.value = '';
+                if (this.filePreview) this.filePreview.innerHTML = '';
             }, 3000);
         }
     }
 
     showUploadSuccess(data) {
+        if (!this.uploadStatus) return;
+        
         this.uploadStatus.innerHTML = `
             <div class="upload-status success">
                 ✅ Successfully processed ${data.processed_files.length} file(s)
@@ -381,6 +388,8 @@ class EduBotApp {
     }
 
     showUploadError(error) {
+        if (!this.uploadStatus) return;
+        
         this.uploadStatus.innerHTML = `
             <div class="upload-status error">
                 ❌ ${error}
@@ -391,7 +400,9 @@ class EduBotApp {
 
     hideUploadStatus() {
         setTimeout(() => {
-            this.uploadStatus.innerHTML = '';
+            if (this.uploadStatus) {
+                this.uploadStatus.innerHTML = '';
+            }
         }, 5000);
     }
 
@@ -411,6 +422,10 @@ class EduBotApp {
                 body: JSON.stringify({ topic, difficulty, num_questions: 5 })
             });
 
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
             const quiz = await response.json();
 
             if (quiz.error) {
@@ -426,6 +441,41 @@ class EduBotApp {
         }
     }
 
+    // displayQuiz(quiz) {
+    //     let quizHtml = `
+    //         <div class="quiz-container">
+    //             <h3>${quiz.quiz_title}</h3>
+    //             <div class="quiz-meta">
+    //                 <span>📊 ${quiz.total_questions} questions</span>
+    //                 <span>⏱️ ${quiz.estimated_time}</span>
+    //                 <span>📈 ${quiz.difficulty}</span>
+    //             </div>
+    //     `;
+
+    //     quiz.questions.forEach((q, i) => {
+    //         quizHtml += `
+    //             <div class="quiz-question" data-question="${i}">
+    //                 <div class="question-header">
+    //                     <span class="question-number">Q${i + 1}</span>
+    //                     <span class="question-difficulty">${q.difficulty || 'medium'}</span>
+    //                 </div>
+    //                 <p class="question-text">${q.question}</p>
+    //                 <div class="quiz-options">
+    //                     ${q.options.map((opt, j) => `
+    //                         <button class="quiz-option" onclick="eduBot.checkAnswer(${i}, ${j}, ${q.correct_answer}, '${this.escapeHtml(q.explanation)}')">
+    //                             <span class="option-letter">${String.fromCharCode(65 + j)}</span>
+    //                             <span class="option-text">${opt}</span>
+    //                         </button>
+    //                     `).join('')}
+    //                 </div>
+    //                 <div class="quiz-explanation" id="explanation-${i}"></div>
+    //             </div>
+    //         `;
+    //     });
+
+    //     quizHtml += '</div>';
+    //     this.addMessage(quizHtml, 'assistant');
+    // }
     displayQuiz(quiz) {
         let quizHtml = `
             <div class="quiz-container">
@@ -447,7 +497,11 @@ class EduBotApp {
                     <p class="question-text">${q.question}</p>
                     <div class="quiz-options">
                         ${q.options.map((opt, j) => `
-                            <button class="quiz-option" onclick="eduBot.checkAnswer(${i}, ${j}, ${q.correct_answer}, '${this.escapeHtml(q.explanation)}')">
+                            <button class="quiz-option"
+                                data-question="${i}"
+                                data-option="${j}"
+                                data-correct="${q.correct_answer}"
+                                data-explanation="${this.escapeHtml(q.explanation).replace(/"/g, '&quot;')}">
                                 <span class="option-letter">${String.fromCharCode(65 + j)}</span>
                                 <span class="option-text">${opt}</span>
                             </button>
@@ -460,10 +514,28 @@ class EduBotApp {
 
         quizHtml += '</div>';
         this.addMessage(quizHtml, 'assistant');
+
+        // Attach click listeners safely
+        setTimeout(() => {
+            document.querySelectorAll('.quiz-option').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const btn = e.currentTarget;
+                    const qIndex = parseInt(btn.dataset.question);
+                    const oIndex = parseInt(btn.dataset.option);
+                    const cIndex = parseInt(btn.dataset.correct);
+                    const explanation = btn.dataset.explanation;
+
+                    this.checkAnswer(qIndex, oIndex, cIndex, explanation);
+                });
+            });
+        }, 0);
     }
+
 
     checkAnswer(questionIndex, selectedIndex, correctIndex, explanation) {
         const questionDiv = document.querySelector(`[data-question="${questionIndex}"]`);
+        if (!questionDiv) return;
+        
         const options = questionDiv.querySelectorAll('.quiz-option');
         const explanationDiv = document.getElementById(`explanation-${questionIndex}`);
 
@@ -482,15 +554,17 @@ class EduBotApp {
         });
 
         // Show explanation
-        const isCorrect = selectedIndex === correctIndex;
-        explanationDiv.innerHTML = `
-            <div class="explanation ${isCorrect ? 'correct' : 'incorrect'}">
-                <div class="explanation-header">
-                    ${isCorrect ? '✅ Correct!' : '❌ Incorrect'}
+        if (explanationDiv) {
+            const isCorrect = selectedIndex === correctIndex;
+            explanationDiv.innerHTML = `
+                <div class="explanation ${isCorrect ? 'correct' : 'incorrect'}">
+                    <div class="explanation-header">
+                        ${isCorrect ? '✅ Correct!' : '❌ Incorrect'}
+                    </div>
+                    <div class="explanation-text">${explanation}</div>
                 </div>
-                <div class="explanation-text">${explanation}</div>
-            </div>
-        `;
+            `;
+        }
     }
 
     async generateFlashcards() {
@@ -508,6 +582,10 @@ class EduBotApp {
                 },
                 body: JSON.stringify({ topic, num_cards: Math.min(numCards, 20) })
             });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
 
             const data = await response.json();
 
@@ -576,6 +654,8 @@ class EduBotApp {
 
     shuffleFlashcards() {
         const container = document.querySelector('.flashcards-grid');
+        if (!container) return;
+        
         const cards = Array.from(container.children);
         
         // Shuffle array
@@ -597,9 +677,10 @@ class EduBotApp {
     async loadSessionHistory() {
         try {
             const response = await fetch('/sessions');
-            const data = await response.json();
-            
-            this.displaySessionHistory(data.sessions);
+            if (response.ok) {
+                const data = await response.json();
+                this.displaySessionHistory(data.sessions);
+            }
         } catch (error) {
             console.error('Failed to load session history:', error);
         }
@@ -628,6 +709,10 @@ class EduBotApp {
 
         try {
             const response = await fetch(`/session/${sessionId}`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
             const data = await response.json();
 
             // Update current session
@@ -635,7 +720,9 @@ class EduBotApp {
             localStorage.setItem('sessionId', sessionId);
 
             // Clear current chat
-            this.chatMessages.innerHTML = '';
+            if (this.chatMessages) {
+                this.chatMessages.innerHTML = '';
+            }
             this.messageHistory = [];
 
             // Load session messages
@@ -658,7 +745,9 @@ class EduBotApp {
 
     createNewSession() {
         this.currentSessionId = this.generateSessionId();
-        this.chatMessages.innerHTML = '';
+        if (this.chatMessages) {
+            this.chatMessages.innerHTML = '';
+        }
         this.messageHistory = [];
         
         // Show welcome message
@@ -679,16 +768,22 @@ class EduBotApp {
         const suggestion = text.replace(/^[📄❓🎯]\s*/, '');
         
         if (suggestion.includes('Upload')) {
-            this.fileInput.click();
+            if (this.fileInput) {
+                this.fileInput.click();
+            }
         } else if (suggestion.includes('quiz')) {
             this.generateQuiz();
         } else {
-            this.messageInput.value = suggestion;
-            this.messageInput.focus();
+            if (this.messageInput) {
+                this.messageInput.value = suggestion;
+                this.messageInput.focus();
+            }
         }
     }
 
     showStatus(message, type) {
+        if (!this.uploadStatus) return;
+        
         this.uploadStatus.innerHTML = `
             <div class="upload-status ${type}">
                 ${message}
@@ -696,7 +791,9 @@ class EduBotApp {
         `;
         
         setTimeout(() => {
-            this.uploadStatus.innerHTML = '';
+            if (this.uploadStatus) {
+                this.uploadStatus.innerHTML = '';
+            }
         }, 3000);
     }
 
@@ -759,6 +856,22 @@ const additionalStyles = `
     display: flex;
     gap: 4px;
     align-items: center;
+}
+
+.typing-dot {
+    width: 8px;
+    height: 8px;
+    background: var(--text-tertiary);
+    border-radius: 50%;
+    animation: typing 1.4s infinite ease-in-out;
+}
+
+.typing-dot:nth-child(1) { animation-delay: -0.32s; }
+.typing-dot:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes typing {
+    0%, 80%, 100% { transform: scale(0); }
+    40% { transform: scale(1); }
 }
 
 .quiz-container {
@@ -1063,6 +1176,33 @@ const additionalStyles = `
     gap: 8px;
     font-size: 12px;
     color: var(--text-tertiary);
+}
+
+.explanation {
+    margin-top: 12px;
+    padding: 12px;
+    border-radius: 8px;
+    border-left: 4px solid;
+}
+
+.explanation.correct {
+    background: rgba(16, 185, 129, 0.1);
+    border-color: var(--success);
+}
+
+.explanation.incorrect {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: var(--error);
+}
+
+.explanation-header {
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.explanation-text {
+    font-size: 14px;
+    line-height: 1.4;
 }
 
 @media (max-width: 768px) {

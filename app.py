@@ -115,7 +115,6 @@ def extract_file_content(filepath):
             with open(filepath, 'r', encoding='utf-8') as f:
                 return str(json.load(f))
         elif filepath.endswith(('.doc', '.docx')):
-            # Add docx support if needed
             return "Document content extraction not yet implemented for this format."
     except Exception as e:
         print(f"Error extracting content: {e}")
@@ -151,7 +150,6 @@ Focus on:
 """
     try:
         response = model.generate_content(prompt)
-        # Try to parse JSON from response
         json_match = re.search(r'\{.*\}', response.text, re.DOTALL)
         if json_match:
             return json.loads(json_match.group())
@@ -181,6 +179,8 @@ def upload_file():
     session_id = request.headers.get('X-Session-ID', str(uuid.uuid4()))
     subject = request.form.get('subject', 'General Studies')
     
+    print(f"Upload - Session ID: {session_id}")  # Debug logging
+    
     # Initialize session if not exists
     if session_id not in sessions:
         sessions[session_id] = {
@@ -201,7 +201,6 @@ def upload_file():
                 filepath = os.path.join(app.config['UPLOAD_FOLDER'], f"{session_id}_{filename}")
                 file.save(filepath)
                 
-                # Process file immediately for better UX
                 content = extract_file_content(filepath)
                 if content:
                     notes = generate_structured_notes(content, subject)
@@ -211,7 +210,7 @@ def upload_file():
                         "id": file_key,
                         "filename": filename,
                         "subject": subject,
-                        "content": content[:10000],  # Store first 10k chars
+                        "content": content[:10000],
                         "structured_notes": notes,
                         "session_id": session_id,
                         "processed_at": datetime.now().isoformat(),
@@ -225,10 +224,12 @@ def upload_file():
                         "status": "success",
                         "notes_preview": notes.get("summary", "")[:200] + "..."
                     })
+                    print(f"Processed file: {file_key} for session: {session_id}")
                 else:
                     failed_files.append({"filename": filename, "error": "Could not extract content"})
                     
             except Exception as e:
+                print(f"File processing error: {e}")
                 failed_files.append({"filename": file.filename, "error": str(e)})
         else:
             failed_files.append({"filename": file.filename, "error": "Invalid file type"})
@@ -238,7 +239,8 @@ def upload_file():
             "message": f"Successfully processed {len(processed_files)} file(s)",
             "status": "success",
             "processed_files": processed_files,
-            "failed_files": failed_files
+            "failed_files": failed_files,
+            "session_id": session_id
         })
     else:
         return jsonify({
@@ -250,31 +252,38 @@ def upload_file():
 @app.route("/chat", methods=["POST"])
 @limiter.limit("30 per minute")
 def chat():
-    data = request.get_json()
-    user_message = data.get("message", "").strip()
-    session_id = data.get("session_id", str(uuid.uuid4()))
-    
-    # Initialize session if not exists
-    if session_id not in sessions:
-        sessions[session_id] = {
-            "id": session_id,
-            "created_at": datetime.now().isoformat(),
-            "message_history": [],
-            "files": [],
-            "preferences": {}
-        }
-    
-    if not user_message:
-        return jsonify({
-            "response": "Please enter a message to start our conversation! 😊",
-            "message_id": str(uuid.uuid4()),
-            "timestamp": datetime.now().isoformat()
-        })
-    
-    # Build enhanced context
-    context = build_enhanced_context(session_id, user_message)
-    
-    prompt = f"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+            
+        user_message = data.get("message", "").strip()
+        session_id = data.get("session_id") or request.headers.get('X-Session-ID', str(uuid.uuid4()))
+        
+        print(f"Chat - Session ID: {session_id}, Message: {user_message[:50]}...")  # Debug logging
+        
+        # Initialize session if not exists
+        if session_id not in sessions:
+            sessions[session_id] = {
+                "id": session_id,
+                "created_at": datetime.now().isoformat(),
+                "message_history": [],
+                "files": [],
+                "preferences": {}
+            }
+        
+        if not user_message:
+            return jsonify({
+                "response": "Please enter a message to start our conversation! 😊",
+                "message_id": str(uuid.uuid4()),
+                "timestamp": datetime.now().isoformat(),
+                "session_id": session_id
+            })
+        
+        # Build enhanced context
+        context = build_enhanced_context(session_id, user_message)
+        
+        prompt = f"""
 You are EduBot, an advanced AI study assistant. You're helpful, encouraging, and educational.
 
 Session Context:
@@ -305,8 +314,7 @@ Response format:
     "topics": ["topic1", "topic2"]
 }}
 """
-    
-    try:
+        
         response = model.generate_content(prompt)
         response_data = parse_enhanced_response(response.text)
         
@@ -351,7 +359,7 @@ Response format:
             "error": True,
             "message_id": str(uuid.uuid4()),
             "timestamp": datetime.now().isoformat()
-        })
+        }), 500
 
 def build_enhanced_context(session_id, current_message):
     """Build comprehensive context for better responses"""
@@ -431,40 +439,60 @@ def generate_fallback_followups(text):
 @app.route("/generate_quiz", methods=["POST"])
 @limiter.limit("10 per hour")
 def generate_quiz():
-    session_id = request.headers.get('X-Session-ID')
-    data = request.get_json() or {}
-    topic = data.get('topic', '')
-    difficulty = data.get('difficulty', 'intermediate')
-    num_questions = min(data.get('num_questions', 5), 10)  # Max 10 questions
-    
-    if not session_id or session_id not in sessions:
-        return jsonify({"error": "Invalid session. Please refresh and try again."}), 400
-    
-    # Get relevant notes for this session
-    session_files = sessions[session_id].get("files", [])
-    relevant_notes = []
-    
-    for file_key in session_files:
-        if file_key in processed_notes:
-            note = processed_notes[file_key]
-            if not topic or topic.lower() in note["subject"].lower():
-                relevant_notes.append(note)
-    
-    if not relevant_notes:
-        return jsonify({"error": "No study materials found. Please upload some files first!"}), 400
-    
-    # Create comprehensive context for quiz generation
-    context = ""
-    for note in relevant_notes:
-        context += f"Subject: {note['subject']}\n"
-        context += f"Content: {note['content'][:2000]}...\n"
-        if 'structured_notes' in note:
-            sn = note['structured_notes']
-            context += f"Key Points: {', '.join(sn.get('key_points', []))}\n"
-            context += f"Concepts: {', '.join(sn.get('important_concepts', []))}\n\n"
-    
-    prompt = f"""
-Generate a {difficulty} level quiz with {num_questions} questions based on this study material:
+    try:
+        session_id = request.headers.get('X-Session-ID')
+        data = request.get_json() or {}
+        topic = data.get('topic', '')
+        difficulty = data.get('difficulty', 'intermediate')
+        num_questions = min(data.get('num_questions', 5), 10)
+        
+        print(f"Quiz generation - Session ID: {session_id}")
+        print(f"Available sessions: {list(sessions.keys())}")
+        print(f"Available processed notes: {list(processed_notes.keys())}")
+        
+        if not session_id or session_id not in sessions:
+            return jsonify({"error": "Invalid session. Please refresh and try again."}), 400
+        
+        # Get relevant notes for this session
+        session_files = sessions[session_id].get("files", [])
+        relevant_notes = []
+        
+        for file_key in session_files:
+            if file_key in processed_notes:
+                note = processed_notes[file_key]
+                if not topic or topic.lower() in note["subject"].lower():
+                    relevant_notes.append(note)
+        
+        # If no notes found in session files, search by session_id in processed_notes
+        if not relevant_notes:
+            print("No notes found in session files, searching by session_id...")
+            for file_key, note in processed_notes.items():
+                if note.get("session_id") == session_id:
+                    if not topic or topic.lower() in note["subject"].lower():
+                        relevant_notes.append(note)
+                        print(f"Found note by session_id: {file_key}")
+        
+        if not relevant_notes:
+            return jsonify({
+                "error": "No study materials found. Please upload some files first!",
+                "debug": {
+                    "session_id": session_id,
+                    "session_files": session_files,
+                    "available_notes": list(processed_notes.keys())
+                }
+            }), 400
+        
+        # Create comprehensive context for quiz generation
+        context = ""
+        for note in relevant_notes:
+            context += f"Subject: {note['subject']}\n"
+            context += f"Content: {note['content'][:2000]}...\n"
+            if 'structured_notes' in note:
+                sn = note['structured_notes']
+                context += f"Key Points: {', '.join(sn.get('key_points', []))}\n"
+                context += f"Concepts: {', '.join(sn.get('important_concepts', []))}\n\n"
+        
+        prompt = f"""Generate a {difficulty} level quiz with {num_questions} questions based on this study material:
 
 {context}
 
@@ -482,7 +510,7 @@ Format as JSON:
     "quiz_title": "Quiz: {topic or 'Study Materials'}",
     "difficulty": "{difficulty}",
     "total_questions": {num_questions},
-    "estimated_time": "X minutes",
+    "estimated_time": "5 minutes",
     "questions": [
         {{
             "id": 1,
@@ -491,18 +519,39 @@ Format as JSON:
             "correct_answer": 0,
             "explanation": "Detailed explanation of why this is correct...",
             "topic": "Specific topic",
-            "difficulty": "easy/medium/hard"
+            "difficulty": "easy"
         }}
     ]
-}}
-"""
-    
-    try:
+}}"""
+        
         response = model.generate_content(prompt)
-        quiz_data = parse_enhanced_response(response.text)
+        
+        # Enhanced JSON parsing with multiple methods
+        quiz_data = None
+        
+        # Method 1: Extract from code blocks
+        json_match = re.search(r'```json\n(.*?)\n```', response.text, re.DOTALL)
+        if json_match:
+            try:
+                quiz_data = json.loads(json_match.group(1))
+            except json.JSONDecodeError:
+                pass
+        
+        # Method 2: Extract JSON object from text
+        if not quiz_data:
+            json_match = re.search(r'\{.*\}', response.text, re.DOTALL)
+            if json_match:
+                try:
+                    quiz_data = json.loads(json_match.group())
+                except json.JSONDecodeError:
+                    pass
+        
+        # Method 3: Use existing parser
+        if not quiz_data:
+            quiz_data = parse_enhanced_response(response.text)
         
         # Ensure proper structure
-        if "questions" not in quiz_data:
+        if not quiz_data or "questions" not in quiz_data:
             raise ValueError("Invalid quiz format")
         
         # Add metadata
@@ -521,35 +570,55 @@ Format as JSON:
 @app.route("/generate_flashcards", methods=["POST"])
 @limiter.limit("10 per hour")
 def generate_flashcards():
-    session_id = request.headers.get('X-Session-ID')
-    data = request.get_json() or {}
-    topic = data.get("topic", "")
-    num_cards = min(data.get("num_cards", 10), 20)  # Max 20 cards
-    
-    if not session_id or session_id not in sessions:
-        return jsonify({"error": "Invalid session"}), 400
-    
-    # Get relevant notes
-    session_files = sessions[session_id].get("files", [])
-    relevant_notes = []
-    
-    for file_key in session_files:
-        if file_key in processed_notes:
-            note = processed_notes[file_key]
-            if not topic or topic.lower() in note["subject"].lower():
-                relevant_notes.append(note)
-    
-    if not relevant_notes:
-        return jsonify({"error": "No study materials found for flashcard generation"}), 400
-    
-    # Build context
-    context = ""
-    for note in relevant_notes:
-        context += f"Subject: {note['subject']}\n"
-        context += f"Content: {note['content'][:3000]}...\n\n"
-    
-    prompt = f"""
-Create {num_cards} educational flashcards based on this material:
+    try:
+        session_id = request.headers.get('X-Session-ID')
+        data = request.get_json() or {}
+        topic = data.get("topic", "")
+        num_cards = min(data.get("num_cards", 10), 20)
+        
+        print(f"Flashcard generation - Session ID: {session_id}")
+        print(f"Available sessions: {list(sessions.keys())}")
+        print(f"Available processed notes: {list(processed_notes.keys())}")
+        
+        if not session_id or session_id not in sessions:
+            return jsonify({"error": "Invalid session"}), 400
+        
+        # Get relevant notes
+        session_files = sessions[session_id].get("files", [])
+        relevant_notes = []
+        
+        for file_key in session_files:
+            if file_key in processed_notes:
+                note = processed_notes[file_key]
+                if not topic or topic.lower() in note["subject"].lower():
+                    relevant_notes.append(note)
+        
+        # If no notes found in session files, search by session_id in processed_notes
+        if not relevant_notes:
+            print("No notes found in session files, searching by session_id...")
+            for file_key, note in processed_notes.items():
+                if note.get("session_id") == session_id:
+                    if not topic or topic.lower() in note["subject"].lower():
+                        relevant_notes.append(note)
+                        print(f"Found note by session_id: {file_key}")
+        
+        if not relevant_notes:
+            return jsonify({
+                "error": "No study materials found for flashcard generation",
+                "debug": {
+                    "session_id": session_id,
+                    "session_files": session_files,
+                    "available_notes": list(processed_notes.keys())
+                }
+            }), 400
+        
+        # Build context
+        context = ""
+        for note in relevant_notes:
+            context += f"Subject: {note['subject']}\n"
+            context += f"Content: {note['content'][:3000]}...\n\n"
+        
+        prompt = f"""Create {num_cards} educational flashcards based on this material:
 
 {context}
 
@@ -571,20 +640,38 @@ Format as JSON array:
         "example": "Practical example or application",
         "hint": "Memory aid or study tip",
         "category": "Subject category",
-        "difficulty": "easy/medium/hard"
+        "difficulty": "easy"
     }}
-]
-"""
-    
-    try:
+]"""
+        
         response = model.generate_content(prompt)
         
-        # Extract JSON array from response
-        json_match = re.search(r'\[.*\]', response.text, re.DOTALL)
+        # Enhanced JSON parsing for arrays
+        flashcards = None
+        
+        # Method 1: Extract from code blocks
+        json_match = re.search(r'```json\n(\[.*?\])\n```', response.text, re.DOTALL)
         if json_match:
-            flashcards = json.loads(json_match.group())
-        else:
+            try:
+                flashcards = json.loads(json_match.group(1))
+            except json.JSONDecodeError:
+                pass
+        
+        # Method 2: Extract JSON array from text
+        if not flashcards:
+            json_match = re.search(r'\[.*?\]', response.text, re.DOTALL)
+            if json_match:
+                try:
+                    flashcards = json.loads(json_match.group())
+                except json.JSONDecodeError:
+                    pass
+        
+        if not flashcards:
             raise ValueError("Could not parse flashcards")
+        
+        # Validate and fix flashcard structure
+        if not isinstance(flashcards, list):
+            raise ValueError("Flashcards must be an array")
         
         # Add metadata to each card
         for i, card in enumerate(flashcards):
@@ -592,6 +679,17 @@ Format as JSON array:
             card["session_id"] = session_id
             if "id" not in card:
                 card["id"] = i + 1
+            # Ensure all required fields exist
+            for field, default in [
+                ("term", f"Term {i + 1}"),
+                ("definition", "Definition not provided"),
+                ("example", "Example not provided"),
+                ("hint", "Study this concept carefully"),
+                ("category", "General"),
+                ("difficulty", "medium")
+            ]:
+                if field not in card:
+                    card[field] = default
         
         return jsonify({
             "flashcards": flashcards,
@@ -613,16 +711,13 @@ def list_sessions():
     session_list = []
     
     for sid, session in sessions.items():
-        # Calculate session stats
         messages = session.get("message_history", [])
         files = session.get("files", [])
         
-        # Get last activity
         last_activity = session.get("created_at")                                                   
         if messages:
             last_activity = messages[-1].get("timestamp", last_activity)
         
-        # Get session preview (last user message)
         preview = "New session"
         for msg in reversed(messages):
             if msg.get("role") == "user":
@@ -639,7 +734,6 @@ def list_sessions():
             "has_files": len(files) > 0
         })
     
-    # Sort by last activity (most recent first)
     session_list.sort(key=lambda x: x["last_activity"], reverse=True)
     
     return jsonify({
@@ -655,7 +749,6 @@ def get_session(session_id):
     
     session = sessions[session_id]
     
-    # Get associated files and notes
     session_files = []
     for file_key in session.get("files", []):
         if file_key in processed_notes:
@@ -682,13 +775,11 @@ def delete_session(session_id):
     if session_id not in sessions:
         return jsonify({"error": "Session not found"}), 404
     
-    # Remove associated files
     session_files = sessions[session_id].get("files", [])
     for file_key in session_files:
         if file_key in processed_notes:
             del processed_notes[file_key]
     
-    # Remove session
     del sessions[session_id]
     
     return jsonify({"message": "Session deleted successfully"})
