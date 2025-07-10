@@ -13,6 +13,7 @@ from datetime import datetime
 import uuid
 from dotenv import load_dotenv
 from flask_cors import CORS
+from flask import Flask, make_response
 
 load_dotenv()
 
@@ -793,6 +794,7 @@ def health_check():
         "active_sessions": len(sessions),
         "processed_files": len(processed_notes)
     })
+
 
 if __name__ == "__main__":
     app.run(debug=True, host='0.0.0.0', port=5000)
