@@ -163,6 +163,11 @@ Focus on:
 def home():
     return render_template("index.html")
 
+@app.errorhandler(404)
+def not_found(e):
+    return render_template('404.html'), 404
+
+
 @app.route("/static/<path:filename>")
 def static_files(filename):
     return send_from_directory('static', filename)
