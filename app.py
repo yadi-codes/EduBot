@@ -159,12 +159,7 @@ Focus on:
     except Exception as e:
         return {"error": str(e), "title": f"Processing Error: {subject}"}
 
-# @app.route("/")
-# def home():
-#     return render_template("index.html")
-@app.route("/")
-def home():
-    return "<h1>It works!</h1><p>Your Flask app is running and '/' is reachable.</p>"
+
 
 
 @app.errorhandler(404)
