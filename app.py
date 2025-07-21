@@ -159,12 +159,9 @@ Focus on:
     except Exception as e:
         return {"error": str(e), "title": f"Processing Error: {subject}"}
 
-
-
-
-@app.errorhandler(404)
-def not_found(e):
-    return render_template('404.html'), 404
+@app.route("/")
+def home():
+    return render_template("index.html")
 
 
 @app.route("/static/<path:filename>")
